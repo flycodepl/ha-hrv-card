@@ -13,6 +13,10 @@ class HRVCard extends HTMLElement {
         exhaust_temperature: findEntity(["exhaust", "afkast", "afkastluft", "udblaes", "udblæs"], "sensor.exhaust_temperature"),
         heat_recovery: findEntity(["heat_recovery", "recovery", "genvinding", "effektivitet"], "sensor.heat_recovery_efficiency"),
         humidity: findEntity(["humidity", "fugt", "luftfugtighed"], "sensor.humidity"),
+        outdoor_humidity: findEntity(["outdoor", "outside", "ude", "udeluft"], undefined),
+        supply_humidity: findEntity(["supply", "indblaes", "indblæs", "tilluft"], undefined),
+        extract_humidity: findEntity(["extract", "udsug", "fraluft"], undefined),
+        exhaust_humidity: findEntity(["exhaust", "afkast", "afkastluft", "udblaes", "udblæs"], undefined),
         bypass: findEntity(["bypass_damper", "bypass"], "cover.dantherm_bypass_damper"),
         mode: findEntity(["operation_selection", "operation_mode", "op_mode", "mode"], "select.dantherm_operation_selection"),
         level: findEntity(["fan_level_selection", "fan_level", "ventilator_trin", "op_mode", "level"], "select.dantherm_fan_level_selection"),
@@ -125,6 +129,10 @@ class HRVCard extends HTMLElement {
       "exhaust_temperature",
       "heat_recovery",
       "humidity",
+      "outdoor_humidity",
+      "supply_humidity",
+      "extract_humidity",
+      "exhaust_humidity",
       "bypass",
       "mode",
       "level",
@@ -193,6 +201,12 @@ class HRVCard extends HTMLElement {
     const value = this._number(key);
     if (value === undefined) return "—";
     return `${value.toFixed(1)}${this._unit(key, "°C")}`;
+  }
+
+  _formatHumidity(key) {
+    const value = this._number(key);
+    if (value === undefined) return "";
+    return `${value.toFixed(0)}${this._unit(key, "%")}`;
   }
 
   _temperatureLabel(key, fallbackKey) {
@@ -411,6 +425,10 @@ class HRVCard extends HTMLElement {
         mode: "Mode",
         level: "Level",
         humidity: "Humidity",
+        outdoor_humidity: "Outdoor humidity",
+        supply_humidity: "Supply humidity",
+        extract_humidity: "Extract humidity",
+        exhaust_humidity: "Exhaust humidity",
         co2: "CO2",
         filter_days: "Filter",
         alarm: "Alarm",
@@ -444,6 +462,10 @@ class HRVCard extends HTMLElement {
         mode: "Drift",
         level: "Ventilationstrin",
         humidity: "Fugt",
+        outdoor_humidity: "Udefugtighed",
+        supply_humidity: "Indblæsningsfugtighed",
+        extract_humidity: "Udsugningsfugtighed",
+        exhaust_humidity: "Udblæsningsfugtighed",
         co2: "CO2",
         filter_days: "Filter",
         alarm: "Alarm",
@@ -714,7 +736,7 @@ class HRVCard extends HTMLElement {
   _alarmIndicator() {
     if (!this._entityId("alarm") || !this._isAlarmActive()) return "";
     return `
-            <g ${this._svgEntityAttrs("alarm", "blink-fade")} tabindex="0" transform="translate(456 254)">
+            <g ${this._svgEntityAttrs("alarm", "blink-fade")} tabindex="0" transform="translate(456 268)">
               <path class="alarm-triangle" d="M0 -18 L20 17 H-20 Z"></path>
               <text x="0" y="10" text-anchor="middle" class="alarm-mark">!</text>
             </g>
@@ -754,7 +776,7 @@ class HRVCard extends HTMLElement {
     const gExtractExhaustBypass = `${this._id}-extract-exhaust-bypass`;
     const gFlowFade = `${this._id}-flow-fade`;
     const flowMask = `${this._id}-flow-mask`;
-    const statusCircleY = summerMode ? 228 : 254;
+    const statusCircleY = summerMode ? 228 : 268;
     const outdoorSupplyPath = summerMode
       ? ""
       : bypassOpen
@@ -810,32 +832,38 @@ class HRVCard extends HTMLElement {
               <rect x="18" y="42" width="118" height="62" rx="10" fill="transparent"></rect>
               ${hasLabels ? `<text x="74" y="64" text-anchor="middle" class="label">${this._temperatureLabel("exhaust_temperature", "exhaust")}</text>` : ""}
               ${hasTemps ? `<text x="74" y="96" text-anchor="middle" class="temperature">${this._formatTemp("exhaust_temperature")}</text>` : ""}
+              ${this._entityId("exhaust_humidity") ? `<text x="74" y="114" text-anchor="middle" class="humidity">${this._formatHumidity("exhaust_humidity")}</text>` : ""}
             </g>
             <g ${this._svgEntityAttrs("extract_temperature")} tabindex="0">
               <rect x="484" y="42" width="118" height="62" rx="10" fill="transparent"></rect>
               ${hasLabels ? `<text x="546" y="64" text-anchor="middle" class="label">${this._temperatureLabel("extract_temperature", "extract")}</text>` : ""}
               ${hasTemps ? `<text x="546" y="96" text-anchor="middle" class="temperature">${this._formatTemp("extract_temperature")}</text>` : ""}
+              ${this._entityId("extract_humidity") ? `<text x="546" y="114" text-anchor="middle" class="humidity">${this._formatHumidity("extract_humidity")}</text>` : ""}
             </g>
     ` : `
             <g ${this._svgEntityAttrs("outdoor_temperature")} tabindex="0">
               <rect x="18" y="6" width="100" height="56" rx="10" fill="transparent"></rect>
               ${hasLabels ? `<text x="68" y="26" text-anchor="middle" class="label">${this._temperatureLabel("outdoor_temperature", "outdoor")}</text>` : ""}
               ${hasTemps ? `<text x="68" y="56" text-anchor="middle" class="temperature">${this._formatTemp("outdoor_temperature")}</text>` : ""}
+              ${this._entityId("outdoor_humidity") ? `<text x="68" y="74" text-anchor="middle" class="humidity">${this._formatHumidity("outdoor_humidity")}</text>` : ""}
             </g>
             <g ${this._svgEntityAttrs(rightTopKey)} tabindex="0">
               <rect x="502" y="6" width="100" height="56" rx="10" fill="transparent"></rect>
               ${hasLabels ? `<text x="552" y="26" text-anchor="middle" class="label">${rightTopLabel}</text>` : ""}
               ${hasTemps ? `<text x="552" y="56" text-anchor="middle" class="temperature">${this._formatTemp(rightTopKey)}</text>` : ""}
+              ${this._entityId("supply_humidity") ? `<text x="552" y="74" text-anchor="middle" class="humidity">${this._formatHumidity("supply_humidity")}</text>` : ""}
             </g>
             <g ${this._svgEntityAttrs(rightBottomKey)} tabindex="0">
-              <rect x="502" y="214" width="100" height="52" rx="10" fill="transparent"></rect>
-              ${hasLabels ? `<text x="552" y="234" text-anchor="middle" class="label">${rightBottomLabel}</text>` : ""}
-              ${hasTemps ? `<text x="552" y="260" text-anchor="middle" class="temperature">${this._formatTemp(rightBottomKey)}</text>` : ""}
+              <rect x="502" y="228" width="100" height="52" rx="10" fill="transparent"></rect>
+              ${hasLabels ? `<text x="552" y="248" text-anchor="middle" class="label">${rightBottomLabel}</text>` : ""}
+              ${hasTemps ? `<text x="552" y="274" text-anchor="middle" class="temperature">${this._formatTemp(rightBottomKey)}</text>` : ""}
+              ${this._entityId("extract_humidity") ? `<text x="552" y="286" text-anchor="middle" class="humidity">${this._formatHumidity("extract_humidity")}</text>` : ""}
             </g>
             <g ${this._svgEntityAttrs("exhaust_temperature")} tabindex="0">
-              <rect x="18" y="214" width="100" height="52" rx="10" fill="transparent"></rect>
-              ${hasLabels ? `<text x="68" y="234" text-anchor="middle" class="label">${this._temperatureLabel("exhaust_temperature", "exhaust")}</text>` : ""}
-              ${hasTemps ? `<text x="68" y="260" text-anchor="middle" class="temperature">${this._formatTemp("exhaust_temperature")}</text>` : ""}
+              <rect x="18" y="228" width="100" height="52" rx="10" fill="transparent"></rect>
+              ${hasLabels ? `<text x="68" y="248" text-anchor="middle" class="label">${this._temperatureLabel("exhaust_temperature", "exhaust")}</text>` : ""}
+              ${hasTemps ? `<text x="68" y="274" text-anchor="middle" class="temperature">${this._formatTemp("exhaust_temperature")}</text>` : ""}
+              ${this._entityId("exhaust_humidity") ? `<text x="68" y="286" text-anchor="middle" class="humidity">${this._formatHumidity("exhaust_humidity")}</text>` : ""}
             </g>
     `;
 
@@ -975,6 +1003,13 @@ class HRVCard extends HTMLElement {
           font-weight: 600;
           fill: var(--hrv-text) !important;
           color: var(--hrv-text) !important;
+        }
+
+        .humidity {
+          font-size: 13px;
+          font-weight: 500;
+          fill: var(--hrv-muted) !important;
+          color: var(--hrv-muted) !important;
         }
 
         .side-value {
@@ -1164,7 +1199,7 @@ class HRVCard extends HTMLElement {
 
       <ha-card>
         <div class="card ${animationOff ? "no-animation" : ""}">
-          <svg viewBox="0 0 620 292" role="img" aria-label="${this._t("airflow_diagram")}">
+          <svg viewBox="0 0 620 306" role="img" aria-label="${this._t("airflow_diagram")}">
             <defs>
               ${this._gradient(gOutdoorSupply, outdoor, supply)}
               ${this._gradient(gExtractExhaust, exhaust, extract)}
@@ -1270,6 +1305,10 @@ class HRVCardEditor extends HTMLElement {
       label_exhaust_temperature: labels.exhaust_temperature,
       heat_recovery: entities.heat_recovery,
       humidity: entities.humidity,
+      outdoor_humidity: entities.outdoor_humidity,
+      supply_humidity: entities.supply_humidity,
+      extract_humidity: entities.extract_humidity,
+      exhaust_humidity: entities.exhaust_humidity,
       bypass: entities.bypass,
       mode: entities.mode,
       level: entities.level,
@@ -1323,6 +1362,10 @@ class HRVCardEditor extends HTMLElement {
         heat_recovery: "Heat recovery",
         invert_heat_recovery: "Invert heat recovery",
         humidity: "Humidity",
+        outdoor_humidity: "Outdoor humidity",
+        supply_humidity: "Supply humidity",
+        extract_humidity: "Extract humidity",
+        exhaust_humidity: "Exhaust humidity",
         co2: "CO2 level",
         filter_days: "Filter remaining days",
         alarm: "Alarm",
@@ -1360,6 +1403,10 @@ class HRVCardEditor extends HTMLElement {
         heat_recovery: "Varmegenvinding",
         invert_heat_recovery: "Omvend varmegenvinding",
         humidity: "Fugt",
+        outdoor_humidity: "Udefugtighed",
+        supply_humidity: "Indblæsningsfugtighed",
+        extract_humidity: "Udsugningsfugtighed",
+        exhaust_humidity: "Udblæsningsfugtighed",
         co2: "CO2 niveau",
         filter_days: "Resterende filter i dage",
         alarm: "Alarm",
@@ -1391,6 +1438,19 @@ class HRVCardEditor extends HTMLElement {
           { name: "supply_temperature", selector: { entity: { domain: "sensor" } } },
           { name: "extract_temperature", selector: { entity: { domain: "sensor" } } },
           { name: "exhaust_temperature", selector: { entity: { domain: "sensor" } } }
+        ]
+      },
+      {
+        type: "expandable",
+        name: "humidity_sensors",
+        title: this._t("humidity"),
+        flatten: true,
+        icon: "mdi:water-percent",
+        schema: [
+          { name: "outdoor_humidity", selector: { entity: { domain: "sensor" } } },
+          { name: "supply_humidity", selector: { entity: { domain: "sensor" } } },
+          { name: "extract_humidity", selector: { entity: { domain: "sensor" } } },
+          { name: "exhaust_humidity", selector: { entity: { domain: "sensor" } } }
         ]
       },
       {
@@ -1478,6 +1538,10 @@ class HRVCardEditor extends HTMLElement {
       exhaust_temperature: value.exhaust_temperature || undefined,
       heat_recovery: value.heat_recovery || undefined,
       humidity: value.humidity || undefined,
+      outdoor_humidity: value.outdoor_humidity || undefined,
+      supply_humidity: value.supply_humidity || undefined,
+      extract_humidity: value.extract_humidity || undefined,
+      exhaust_humidity: value.exhaust_humidity || undefined,
       bypass: value.bypass || undefined,
       mode: value.mode || undefined,
       level: value.level || undefined,
@@ -1547,7 +1611,7 @@ class HRVCardEditor extends HTMLElement {
     }
 
     const language = this._language();
-    const schemaCacheKey = `${language}:2.3.3`;
+    const schemaCacheKey = `${language}:2.4.0`;
     if (!this._schemaCache || this._schemaCacheKey !== schemaCacheKey) {
       this._schemaCache = this._schema();
       this._schemaCacheKey = schemaCacheKey;
