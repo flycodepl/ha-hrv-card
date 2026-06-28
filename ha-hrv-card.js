@@ -112,6 +112,7 @@ var HRVCard = class extends HTMLElement {
 				show_labels: true,
 				show_badges: true,
 				show_temperatures: true,
+				calculate_heat_recovery: false,
 				invert_heat_recovery: false,
 				compact: false
 			},
@@ -145,8 +146,10 @@ var HRVCard = class extends HTMLElement {
 				show_labels: true,
 				show_badges: true,
 				show_temperatures: true,
+				calculate_heat_recovery: false,
 				invert_heat_recovery: false,
-				compact: false
+				compact: false,
+				...config.appearance || {}
 			},
 			...config,
 			entities: { ...config.entities || {} },
@@ -159,15 +162,6 @@ var HRVCard = class extends HTMLElement {
 				orange: 27,
 				red: 32,
 				...config.temperature_thresholds || {}
-			},
-			appearance: {
-				animation: true,
-				show_labels: true,
-				show_badges: true,
-				show_temperatures: true,
-				invert_heat_recovery: false,
-				compact: false,
-				...config.appearance || {}
 			}
 		};
 		this._lastRenderSignature = "";
@@ -385,7 +379,21 @@ var HRVCard = class extends HTMLElement {
 		if (value === void 0) return "—";
 		return `${value.toFixed(decimals)}${suffix}`;
 	}
+	_computeHeatRecovery() {
+		const outdoor = this._number("outdoor_temperature");
+		const supply = this._number("supply_temperature");
+		const extract = this._number("extract_temperature");
+		const exhaust = this._number("exhaust_temperature");
+		if (outdoor === void 0 || supply === void 0 || extract === void 0 || exhaust === void 0) return void 0;
+		const diff = extract - outdoor;
+		if (Math.abs(diff) < .1) return void 0;
+		let efficiency = ((supply - outdoor) / diff + (extract - exhaust) / diff) / 2 * 100;
+		efficiency = Math.max(0, Math.min(100, efficiency));
+		if (this._config?.appearance?.invert_heat_recovery === true) return 100 - efficiency;
+		return efficiency;
+	}
 	_heatRecoveryValue() {
+		if (this._config?.appearance?.calculate_heat_recovery === true) return this._computeHeatRecovery();
 		const value = this._number("heat_recovery");
 		if (value === void 0) return void 0;
 		return this._config?.appearance?.invert_heat_recovery === true ? 100 - value : value;
@@ -452,6 +460,8 @@ var HRVCard = class extends HTMLElement {
 				supply_temperature: "Supply temperature",
 				extract_temperature: "Extract temperature",
 				exhaust_temperature: "Exhaust temperature",
+				calculate_heat_recovery: "Auto-calculate heat recovery",
+				auto_calculated_note: "(auto-calculated from temperatures)",
 				heat_recovery: "Heat recovery",
 				invert_heat_recovery: "Invert heat recovery",
 				fan1_rpm: "Fan 1 RPM",
@@ -489,6 +499,8 @@ var HRVCard = class extends HTMLElement {
 				supply_temperature: "Indblæsningstemperatur",
 				extract_temperature: "Udsugningstemperatur",
 				exhaust_temperature: "Udblæsningstemperatur",
+				calculate_heat_recovery: "Autoberegn varmegenvinding",
+				auto_calculated_note: "(autoberegnet fra temperaturer)",
 				heat_recovery: "Varmegenvinding",
 				invert_heat_recovery: "Omvend varmegenvinding",
 				fan1_rpm: "Ventilator 2 RPM",
@@ -1372,6 +1384,7 @@ var HRVCardEditor = class extends HTMLElement {
 			show_labels: appearance.show_labels !== false,
 			show_badges: appearance.show_badges !== false,
 			show_temperatures: appearance.show_temperatures !== false,
+			calculate_heat_recovery: appearance.calculate_heat_recovery === true,
 			invert_heat_recovery: appearance.invert_heat_recovery === true,
 			compact: appearance.compact === true,
 			threshold_white: thresholds.white ?? -10,
@@ -1407,6 +1420,8 @@ var HRVCardEditor = class extends HTMLElement {
 				threshold_yellow: "Yellow from",
 				threshold_orange: "Orange from",
 				threshold_red: "Red from",
+				calculate_heat_recovery: "Auto-calculate heat recovery",
+				auto_calculated_note: "(auto-calculated from temperatures)",
 				heat_recovery: "Heat recovery",
 				invert_heat_recovery: "Invert heat recovery",
 				humidity: "Humidity",
@@ -1448,6 +1463,8 @@ var HRVCardEditor = class extends HTMLElement {
 				threshold_yellow: "Gul fra",
 				threshold_orange: "Orange fra",
 				threshold_red: "Rød fra",
+				calculate_heat_recovery: "Autoberegn varmegenvinding",
+				auto_calculated_note: "(autoberegnet fra temperaturer)",
 				heat_recovery: "Varmegenvinding",
 				invert_heat_recovery: "Omvend varmegenvinding",
 				humidity: "Fugt",
@@ -1691,6 +1708,10 @@ var HRVCardEditor = class extends HTMLElement {
 						selector: { boolean: {} }
 					},
 					{
+						name: "calculate_heat_recovery",
+						selector: { boolean: {} }
+					},
+					{
 						name: "invert_heat_recovery",
 						selector: { boolean: {} }
 					},
@@ -1704,6 +1725,24 @@ var HRVCardEditor = class extends HTMLElement {
 	}
 	_computeLabel(schema) {
 		return this._t(schema.name) || schema.title || schema.name;
+	}
+	_computeSchema() {
+		const base = this._schema();
+		const calcEnabled = this._config?.appearance?.calculate_heat_recovery === true;
+		return base.map((section) => {
+			if (section.name !== "optional_entities") return section;
+			return {
+				...section,
+				schema: section.schema.map((field) => {
+					if (field.name === "heat_recovery" && calcEnabled) return {
+						name: "_hrv_auto_hr_info",
+						title: this._t("auto_calculated_note"),
+						selector: { text: {} }
+					};
+					return field;
+				})
+			};
+		});
 	}
 	_valueChanged(event) {
 		event.stopPropagation();
@@ -1756,6 +1795,7 @@ var HRVCardEditor = class extends HTMLElement {
 			show_labels: value.show_labels !== false,
 			show_badges: value.show_badges !== false,
 			show_temperatures: value.show_temperatures !== false,
+			calculate_heat_recovery: value.calculate_heat_recovery === true,
 			invert_heat_recovery: value.invert_heat_recovery === true,
 			compact: value.compact === true
 		};
@@ -1793,10 +1833,10 @@ var HRVCardEditor = class extends HTMLElement {
 		}
 		const schemaCacheKey = `${this._language()}:2.4.0`;
 		if (!this._schemaCache || this._schemaCacheKey !== schemaCacheKey) {
-			this._schemaCache = this._schema();
+			this._schemaCache = this._computeSchema();
 			this._schemaCacheKey = schemaCacheKey;
 		}
-		form.schema = this._schemaCache;
+		form.schema = this._computeSchema();
 		form.hass = this._hass;
 		form.data = this._formData();
 	}
